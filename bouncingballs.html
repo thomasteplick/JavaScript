@@ -1,0 +1,156 @@
+<!doctype html>
+<html>
+	<head>
+		<title>Bouncing Balls</title>
+	</head>
+	<body>
+      <canvas width="400" height="400"></canvas>
+		
+	  <script>
+	    "use strict";
+		let cx = document.querySelector("canvas").getContext("2d");
+		cx.strokeStyle = "brown", cx.lineWidth = 10;
+		const boxx1 = 10, boxy1 = 10, boxx2 = 390, boxy2 = 390;
+		const boxh = 380, boxw = 380;
+		const nBalls = 10;  // number of balls to start
+		
+		// stroke the box
+		cx.beginPath()
+		cx.strokeRect(boxx1, boxy1, boxw, boxh);  // draw the box one time only
+		
+	    const SPEED = 150;  // ball speed
+		const RADIUS = 10; // ball radius
+		const BallColors = ['red', 'blue', 'green', 'orange', 'violet', 'yellow'];
+		
+		let lastTime = null;
+		
+		// the balls that are alive and moving
+		let balls = [];
+		
+		// exploding balls
+		let exploding = [];
+		
+	    class Ball {
+			constructor() {
+				this.rad = RADIUS;
+				this.posx = boxx1 + boxw*Math.random(); // position
+				this.posy = boxy1 + boxh*Math.random();
+				this.angle = 2*Math.PI*Math.random();
+				this.vx = SPEED*Math.cos(this.angle);        // speed in x direction
+				this.vy = SPEED*Math.sin(this.angle);        // speed in y direction
+				this.color = BallColors[Math.floor(BallColors.length*Math.random())];
+				this.tExplosion = 1;  // explosion time in seconds
+				this.collision = false;
+			}
+			
+			updatePosition(step) {
+				this.posx = this.posx + this.vx*step;
+				if (this.posx - this.rad <= boxx1) {
+					this.posx = Math.max(boxx1 + this.rad, 2*boxx1 - this.posx)
+					this.vx = -this.vx;
+				}
+				else if (this.posx + this.rad >= boxx2) {
+					this.posx = Math.min(boxx2 - this.rad, 2*boxx2 - this.posx);
+					this.vx = -this.vx;
+				}
+				
+				this.posy = this.posy + this.vy*step;
+				if (this.posy - this.rad <= boxy1) {
+					this.posy = Math.max(boxy1 + this.rad, 2*boxy1 - this.posy);
+					this.vy = -this.vy;
+				}
+				else if (this.posy + this.rad >= boxy2) {
+					this.posy = Math.min(boxy2 - this.rad, 2*boxy2 - this.posy);
+					this.vy = -this.vy;
+				}
+			}
+			
+			detectCollision(that) {
+				let xdif = this.posx - that.posx;
+				let ydif = this.posy - that.posy;
+				if (xdif*xdif + ydif*ydif <= 4*this.rad*this.rad) {
+					this.collision = true;
+					that.collision = true;
+				}
+			}
+			
+			explode(time, n) {
+				if (this.tExplosion > 0)  {
+					this.color = "black";
+					this.rad *= 1.01;
+					this.tExplosion -= time;
+					return true;
+				}
+				else {
+					exploding.splice(n,1);
+					return false;
+				}
+			}
+		}
+				
+		function updateAnimation(step, n) {
+			cx.fillStyle = "white";
+			cx.fillRect(boxx1, boxy1, boxw, boxh);  // clear the box interior, leaving the frame
+			
+			// update the ball positions
+			balls.forEach( ball => ball.updatePosition(step));
+							
+			// detect ball-ball collisions
+			for (let i = 0; i < n; i++) {
+				for (let j = i+1; j < n; j++) {
+					balls[i].detectCollision(balls[j])
+				}
+				// Remove colliding ball after it has been checked against all the other balls
+				// Push it onto exploding list
+				if (balls[i].collision) {
+					exploding.push(balls[i]);
+				}
+			}
+			
+			// remove the colliding balls
+			let filtered = balls.filter(ball => !ball.collision);
+			balls = filtered;
+			
+			balls.forEach( ball => {
+				cx.beginPath();
+				cx.fillStyle = ball.color;
+				cx.arc(ball.posx, ball.posy, ball.rad, 0, 7);
+				cx.fill();
+			});
+			
+			exploding.forEach( (ball, n) => {
+				let draw = ball.explode(step, n);
+				if (draw) {
+					cx.beginPath();
+					cx.fillStyle = ball.color;
+					cx.arc(ball.posx, ball.posy, ball.rad, 0, 7);
+					cx.fill();
+				}
+			});
+									
+		}
+		
+		function frame(time) {
+			if (lastTime != null) {
+				updateAnimation(Math.min(100, time - lastTime) / 1000, balls.length);
+			}
+			lastTime = time;
+			if (balls.length > 0 || exploding.length > 0)
+				requestAnimationFrame(frame);
+		}
+		
+		function createBalls(n) {
+			for (let i =  0; i < n; i++) {
+				balls.push(new Ball());
+			}
+		}
+		
+		// Create the balls
+		createBalls(nBalls);
+		
+		// Begin the animation
+		requestAnimationFrame(frame);
+
+	  </script>
+	</body>
+</html>

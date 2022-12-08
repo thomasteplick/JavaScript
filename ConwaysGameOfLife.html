@@ -1,0 +1,245 @@
+<!doctype html>
+<html>
+	<head>
+		<title>18 Conway's Game of Life</title>
+	</head>
+	<body>
+
+		<div id="grid"></div>
+		<button id="next" data-help="Single step to next generation.">Next generation</button>
+		<button id="run" data-help="Run to next generation continuously.  Click to stop auto run.">Auto run</button>
+		<p id="help"></p>
+
+		<script>
+			class Matrix {
+				constructor(width, height, element = () => undefined) {
+					this.width = width;
+					this.height = height;
+					this.content = [];
+					for (let y = 0; y < height; y++) {   // rows
+						for (let x = 0; x < width; x++) {      // columns
+						this.content[y * width + x] = element();
+						}
+					}
+				}
+				get(x, y) {
+					return this.content[y * this.width + x];
+				}
+				set(x, y, value) {
+					this.content[y * this.width + x] = value;
+				}
+			}
+			
+			// Link the matrix element to the checkbox in the table
+			function assignMatrix() {
+			    let chk = Math.random() < 0.5 ? true : false;
+				let cb = document.createElement("input");
+				cb.type = "checkbox";
+				cb.checked = chk;
+				return {checked : chk, checkbox : cb};
+			}
+			
+			// Create matrix of checkboxes linked to <td> elements in a <table>
+			function createCheckboxGrid(matrix, n) {
+				let table = document.createElement("table");
+				let parent = document.querySelector("#grid");
+				for (let r = 0; r < n; r++) {        // rows are the y coordinate in Matrix
+					let row = document.createElement("tr");
+					for (let c = 0; c < n; c++) {       // columns are the x coordinate in Matrix
+						let td = document.createElement("td");
+						let cb = matrix.get(c,r).checkbox;
+						td.style.background = cb.checked ? "blue" : "red";
+						td.appendChild(cb);
+						row.appendChild(td);
+					}
+					table.appendChild(row);
+				}
+				parent.appendChild(table);
+			}
+			
+			let help = document.querySelector("#help");
+			
+			// Event Listener for Next generation button click or mouse hover
+			let nxt = document.querySelector('#next');
+			nxt.addEventListener("click", event => {
+				nextGen(event)
+			});
+			nxt.addEventListener("mouseover", event => {
+				let text = event.target.getAttribute("data-help");
+				help.textContent = text;
+			});
+			nxt.addEventListener("mouseout", event => {
+				help.textContent = "";
+			});
+				
+			
+			// Event Listeners for Auto run button click or mouse hover
+			let run = document.querySelector('#run');
+			run.addEventListener("click", event => {
+				runNextGen(event)
+			});
+			run.addEventListener("mouseover", event => {
+				let text = event.target.getAttribute("data-help");
+				help.textContent = text;
+			});
+			run.addEventListener("mouseout", event => {
+				help.textContent = "";
+			});
+			
+			
+			// Number of rows and columns in the grid
+			const N = 15;
+			let theMatrix = new Matrix(N, N, assignMatrix);
+
+			/*  Use the following living rules:
+			    Any live cell with fewer than two or more than three live neighbors dies.
+				Any live cell with two or three live neighbors lives on to the next generation.
+				Any dead cell with exactly three live neighbors becomes a live cell.
+			*/
+			function applyRules(n, content) {
+				if (n < 2 || n > 3)  {
+					content.checkbox.checked = false;
+					content.checkbox.parentNode.style.background = "red";
+				}
+				else if (n == 3) {
+					content.checkbox.checked = true;
+					content.checkbox.parentNode.style.background = "blue";
+				}
+				else if (content.checked && n == 2) {
+					content.checkbox.checked = true;
+					content.checkbox.parentNode.style.background = "blue";
+				}
+			}
+			
+			let intervalID = null;
+			// auto run next generation 
+			function runNextGen(event) {
+				if (intervalID == null)
+					intervalID = setInterval(event => nextGen(event), 500);
+				else {
+					clearInterval(intervalID);
+					intervalID = null;
+				}
+			}
+				
+			/*  function to update the table of checkboxes that is called from
+			    the button click event listener.			
+			*/
+			function nextGen(event) {
+				// update matrix from the current checkbox table
+				for (let r = 0; r < N; r++) {  // rows
+					for (let c = 0; c < N; c++) {   // columns
+						// get the checkbox at this position
+						let content = theMatrix.get(c,r);
+						theMatrix.set(c,r,{checked : content.checkbox.checked, checkbox : content.checkbox});
+					}
+				}										
+				// update the table according to the living rules
+				for (let r = 0; r < N; r++) {  // rows
+					for (let c = 0; c < N; c++) { // columns
+						let n = 0;
+						let content = theMatrix.get(c,r);
+						// interior elements have eight neighbors
+						if (r > 0 && r < N-1 && c > 0 && c < N-1) {
+							// count the neighbors that are alive
+							if (theMatrix.get(c-1,r-1).checked) n++;
+							if (theMatrix.get(c-1,r).checked) n++;
+							if (theMatrix.get(c-1,r+1).checked) n++;
+							if (theMatrix.get(c,r-1).checked) n++;
+							if (theMatrix.get(c,r+1).checked) n++;
+							if (theMatrix.get(c+1,r-1).checked) n++;
+							if (theMatrix.get(c+1,r).checked) n++;
+							if (theMatrix.get(c+1,r+1).checked) n++;
+							// decide who lives
+							applyRules(n, content);
+						}
+						
+						// The side elements have five neighbors, excluding corners, 
+						// There are four sides in the matrix/table.
+						
+						// this is the top row, excluding corners
+						else if (r == 0 && c != 0 && c != N-1) {
+							if (theMatrix.get(c-1,r).checked) n++;
+							if (theMatrix.get(c+1,r).checked) n++;
+							if (theMatrix.get(c-1,r+1).checked) n++;
+							if (theMatrix.get(c,r+1).checked) n++;
+							if (theMatrix.get(c+1,r+1).checked) n++;
+							// decide who lives
+							applyRules(n, content);
+						}
+						// bottom row excluding corners
+						else if (r == N-1 && c != 0 && c != N-1) {
+							if (theMatrix.get(c-1,r-1).checked) n++;
+							if (theMatrix.get(c,r-1).checked) n++;
+							if (theMatrix.get(c+1,r-1).checked) n++;
+							if (theMatrix.get(c-1,r).checked) n++;
+							if (theMatrix.get(c+1,r).checked) n++;
+							// decide who lives
+							applyRules(n, content);
+						}
+						// left side, excluding corners
+						else if (c == 0 && r != 0 && r != N-1) {
+							if (theMatrix.get(c,r-1).checked) n++;
+							if (theMatrix.get(c,r+1).checked) n++;
+							if (theMatrix.get(c+1,r-1).checked) n++;
+							if (theMatrix.get(c+1,r).checked) n++;
+							if (theMatrix.get(c+1,r+1).checked) n++;
+							// decide who lives
+							applyRules(n, content);
+						}
+						// right side, excluding corners
+						else if (c == N-1 && r != 0 && r != N-1) {
+							if (theMatrix.get(c-1,r-1).checked) n++;
+							if (theMatrix.get(c-1,r).checked) n++;
+							if (theMatrix.get(c-1,r+1).checked) n++;
+							if (theMatrix.get(c,r-1).checked) n++;
+							if (theMatrix.get(c,r+1).checked) n++;
+							// decide who lives
+							applyRules(n, content);
+						}
+						
+						// corner elements have three neighbors
+						
+						// left top corner
+						else if (r == 0 && c == 0) {
+							if (theMatrix.get(c+1,r).checked) n++;
+							if (theMatrix.get(c+1,r+1).checked) n++;
+							if (theMatrix.get(c,r+1).checked) n++;
+							// decide who lives
+							applyRules(n, content);
+						}
+						// right top corner
+						else if (r == 0 && c == N-1) {
+							if (theMatrix.get(c-1,r).checked) n++;
+							if (theMatrix.get(c-1,r+1).checked) n++;
+							if (theMatrix.get(c,r+1).checked) n++;
+							// decide who lives
+							applyRules(n, content);
+						}
+						// left bottom corner
+						else if (r == N-1 && c == 0) {
+							if (theMatrix.get(c,r-1).checked) n++;
+							if (theMatrix.get(c+1,r-1).checked) n++;
+							if (theMatrix.get(c+1,r).checked) n++;
+							// decide who lives
+							applyRules(n, content);
+						}
+						// right bottom corner
+						else if (r == N-1 && c == N-1) {
+							if (theMatrix.get(c,r-1).checked) n++;
+							if (theMatrix.get(c-1,r-1).checked) n++;
+							if (theMatrix.get(c-1,r).checked) n++;
+							// decide who lives
+							applyRules(n, content);	
+						}
+					}
+				}
+				
+			}
+			
+			// begin the game of life
+			createCheckboxGrid(theMatrix, N);
+			
+		</script>
+	</body>
+</html>
